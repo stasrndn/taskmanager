@@ -1,6 +1,22 @@
 import {createElement} from '../render.js';
 
-const createTaskEditTemplate = () => (`<article class="card card--edit card--yellow card--repeat">
+const createTaskEditTemplate = (task = {}) => {
+  const {
+    color = 'black',
+    description = '',
+    dueDate = null,
+    repeating = {
+      mo: false,
+      tu: false,
+      we: false,
+      th: false,
+      fr: false,
+      sa: false,
+      su: false,
+    },
+  } = task;
+
+  return (`<article class="card card--edit card--yellow card--repeat">
       <form class="card__form" method="get">
         <div class="card__inner">
           <div class="card__color-bar">
@@ -76,11 +92,16 @@ const createTaskEditTemplate = () => (`<article class="card card--edit card--yel
           </div>
         </div>
       </form>
-   </article>`);
+   </article>`)
+};
 
 export default class TaskEditView {
+  constructor(task) {
+    this.task = task;
+  }
+
   getTemplate() {
-    return createTaskEditTemplate();
+    return createTaskEditTemplate(this.task);
   }
 
   getElement() {
