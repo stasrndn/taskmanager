@@ -20,4 +20,11 @@ const getRandomInteger = (a = 0, b = 1) => {
  */
 const humanizeTaskDueDate = (dueDate) => dayjs(dueDate).format('D MMMM');
 
-export {getRandomInteger, humanizeTaskDueDate};
+/**
+ * Определяет просрочена ли задача
+ * @param dueDate
+ * @returns {boolean}
+ */
+const isTaskExpired = (dueDate) => dueDate && dayjs().isAfter(dueDate, 'D');
+
+export {getRandomInteger, humanizeTaskDueDate, isTaskExpired};
