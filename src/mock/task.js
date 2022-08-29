@@ -35,24 +35,31 @@ const generateDate = () => {
 };
 
 /**
+ * Генерирует набор случайных повторений
+ * @returns {{tu: boolean, mo: boolean, su: boolean, th: boolean, fr: boolean, we: boolean, sa: boolean}}
+ */
+const generateRepeating = () => ({
+  mo: false,
+  tu: false,
+  we: Boolean(getRandomInteger(0, 1)),
+  th: false,
+  fr: Boolean(getRandomInteger(0, 1)),
+  sa: false,
+  su: false,
+});
+
+/**
  * Функция для генерации новой задачи
  * @returns {{isArchive: boolean, color: string, dueDate: Date, repeating: {tu: boolean, mo: boolean, su: boolean, th: boolean, fr: boolean, we: boolean, sa: boolean}, description: string, isFavorite: boolean}}
  */
 export const generateTask = () => {
   const dueDate = generateDate();
+  const repeating = generateRepeating();
 
   return {
     description: generateDescription(),
     dueDate,
-    repeating: {
-      mo: false,
-      tu: false,
-      we: false,
-      th: false,
-      fr: false,
-      sa: false,
-      su: false,
-    },
+    repeating,
     color: 'black',
     isArchive: false,
     isFavorite: false,
