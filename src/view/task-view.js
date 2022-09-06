@@ -1,7 +1,31 @@
 import {createElement} from '../render.js';
+import {humanizeTaskDueDate, isTaskExpired, isTaskRepeating} from '../utils.js';
 
-const createTaskTemplate = () => (
-  `<article class="card card--black">
+const createTaskTemplate = (task) => {
+  const {color, description, dueDate, repeating, isArchive, isFavorite} = task;
+
+  const date = dueDate !== null
+    ? humanizeTaskDueDate(dueDate)
+    : '';
+
+  const deadlineClassName = isTaskExpired(dueDate)
+    ? 'card--deadline'
+    : '';
+
+  const repeatClassName = isTaskRepeating(repeating)
+    ? 'card--repeat'
+    : '';
+
+  const archiveClassName = isArchive
+    ? 'card__btn--archive card__btn--disabled'
+    : 'card__btn--archive';
+
+  const favoriteClassName = isFavorite
+    ? 'card__btn--favorites card__btn--disabled'
+    : 'card__btn--favorites';
+
+  return (
+    `<article class="card card--${color} ${deadlineClassName} ${repeatClassName} ${archiveClassName} ${favoriteClassName}">
       <div class="card__form">
         <div class="card__inner">
           <div class="card__control">
@@ -26,7 +50,7 @@ const createTaskTemplate = () => (
           </div>
 
           <div class="card__textarea-wrap">
-            <p class="card__text">Example task with default color.</p>
+            <p class="card__text">${description}</p>
           </div>
 
           <div class="card__settings">
@@ -34,7 +58,7 @@ const createTaskTemplate = () => (
               <div class="card__dates">
                 <div class="card__date-deadline">
                   <p class="card__input-deadline-wrap">
-                    <span class="card__date">23 September</span>
+                    <span class="card__date">${date}</span>
                   </p>
                 </div>
               </div>
@@ -43,11 +67,16 @@ const createTaskTemplate = () => (
         </div>
       </div>
     </article>`
-);
+  )
+};
 
 export default class TaskView {
+  constructor(task) {
+    this.task = task;
+  }
+
   getTemplate() {
-    return createTaskTemplate();
+    return createTaskTemplate(this.task);
   }
 
   getElement() {
