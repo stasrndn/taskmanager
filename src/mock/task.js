@@ -1,5 +1,6 @@
 import {getRandomInteger} from '../utils.js';
 import dayjs from "dayjs";
+import {COLORS} from "../const";
 
 /**
  * Получить рандомное описание задачи
@@ -49,6 +50,16 @@ const generateRepeating = () => ({
 });
 
 /**
+ * Генерирует случайный цвет
+ * @returns {string}
+ */
+const getRandomColor = () => {
+  const randomIndex = getRandomInteger(0, COLORS.length - 1);
+
+  return COLORS[randomIndex];
+};
+
+/**
  * Функция для генерации новой задачи
  * @returns {{isArchive: boolean, color: string, dueDate: Date, repeating: {tu: boolean, mo: boolean, su: boolean, th: boolean, fr: boolean, we: boolean, sa: boolean}, description: string, isFavorite: boolean}}
  */
@@ -70,8 +81,8 @@ export const generateTask = () => {
     description: generateDescription(),
     dueDate,
     repeating,
-    color: 'black',
-    isArchive: false,
-    isFavorite: false,
+    color: getRandomColor(),
+    isArchive: Boolean(getRandomInteger(0, 1)),
+    isFavorite: Boolean(getRandomInteger(0, 1)),
   }
 };
