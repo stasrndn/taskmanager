@@ -1,5 +1,5 @@
-import {getRandomInteger} from '../utils.js';
 import dayjs from "dayjs";
+import {getRandomInteger} from '../utils/common.js';
 import {COLORS} from "../const";
 
 /**
