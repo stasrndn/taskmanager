@@ -21,8 +21,16 @@ const isTaskExpired = (dueDate) => dueDate && dayjs().isAfter(dueDate, 'D');
  */
 const isTaskRepeating = (repeating) => Object.values(repeating).some(Boolean);
 
+/**
+ * Проверяет, подходит ли дата просрочки сегодня
+ * @param dueDate
+ * @returns {boolean}
+ */
+const isTaskExpiringToday = (dueDate) => dueDate && dayjs(dueDate).isSame(dayjs(), 'D');
+
 export {
   humanizeTaskDueDate,
   isTaskExpired,
   isTaskRepeating,
+  isTaskExpiringToday,
 };
