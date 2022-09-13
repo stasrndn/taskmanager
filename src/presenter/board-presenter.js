@@ -67,7 +67,7 @@ export default class BoardPresenter {
    * @param task
    */
   #renderTask = (task) => {
-    const taskPresenter = new TaskPresenter(this.#taskListComponent.element);
+    const taskPresenter = new TaskPresenter(this.#taskListComponent.element, this.#handleTaskChange);
     taskPresenter.init(task);
     this.#taskPresenter.set(task.id, taskPresenter);
   };
