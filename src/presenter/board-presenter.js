@@ -87,11 +87,14 @@ export default class BoardPresenter {
     this.#currentSortType = sortType;
   };
 
+  /**
+   * Обработчик нажатия ссылки в компоненте сортировки
+   * @param sortType
+   */
   #handleSortTypeChange = (sortType) => {
-    // - Сортируем задачи
-    // - Очищаем список
-    // - Рендерим список заново
     this.#sortTasks(sortType);
+    this.#clearTaskList();
+    this.#renderTaskList();
   };
 
   /**
