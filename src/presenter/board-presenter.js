@@ -20,6 +20,7 @@ export default class BoardPresenter {
 
   #boardTasks = [];
   #renderedTaskCount = TASK_COUNT_PER_STEP;
+  #taskPresenter = new Map();
 
   constructor(boardContainer, tasksModel) {
     this.#boardContainer = boardContainer;
@@ -58,6 +59,7 @@ export default class BoardPresenter {
   #renderTask = (task) => {
     const taskPresenter = new TaskPresenter(this.#taskListComponent.element);
     taskPresenter.init(task);
+    this.#taskPresenter.set(task.id, taskPresenter);
   };
 
   /**
@@ -86,6 +88,16 @@ export default class BoardPresenter {
   #renderLoadMoreButton = () => {
     render(this.#loadMoreButtonComponent, this.#boardComponent.element);
     this.#loadMoreButtonComponent.setClickHandler(this.#handleLoadMoreButtonClick);
+  };
+
+  /**
+   * Очистка доски от карточек задач
+   */
+  #clearTaskList = () => {
+    this.#taskPresenter.forEach((presenter) => presenter.destroy());
+    this.#taskPresenter.clear();
+    this.#renderedTaskCount = TASK_COUNT_PER_STEP;
+    remove(this.#loadMoreButtonComponent);
   };
 
   /**
