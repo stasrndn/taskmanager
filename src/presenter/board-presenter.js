@@ -47,6 +47,14 @@ export default class BoardPresenter {
   };
 
   /**
+   * Обработчик режимов карточек задач.
+   * Переключение в режим просмотра (по умолчанию)
+   */
+  #handleModeChange = () => {
+    this.#taskPresenter.forEach((presenter) => presenter.resetView());
+  };
+
+  /**
    * Обработчик изменения задачи
    * @param updatedTask
    */
@@ -67,7 +75,7 @@ export default class BoardPresenter {
    * @param task
    */
   #renderTask = (task) => {
-    const taskPresenter = new TaskPresenter(this.#taskListComponent.element, this.#handleTaskChange);
+    const taskPresenter = new TaskPresenter(this.#taskListComponent.element, this.#handleTaskChange, this.#handleModeChange);
     taskPresenter.init(task);
     this.#taskPresenter.set(task.id, taskPresenter);
   };
