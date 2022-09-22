@@ -1,11 +1,13 @@
-import {render, replace, remove} from "../framework/render.js";
+import {render, RenderPosition, remove} from '../framework/render.js';
 import BoardView from '../view/board-view.js';
 import SortView from '../view/sort-view.js';
 import TaskListView from '../view/task-list-view.js';
-import TaskView from '../view/task-view.js';
-import TaskEditView from '../view/task-edit-view.js';
 import LoadMoreButtonView from '../view/load-more-button-view.js';
-import NoTaskView from "../view/no-task-view";
+import NoTaskView from '../view/no-task-view.js';
+import TaskPresenter from './task-presenter.js';
+import {updateItem} from '../utils/common.js';
+import {sortTaskUp, sortTaskDown} from '../utils/task.js';
+import {SortType} from '../const.js';
 
 const TASK_COUNT_PER_STEP = 8;
 
@@ -15,10 +17,15 @@ export default class BoardPresenter {
 
   #boardComponent = new BoardView();
   #taskListComponent = new TaskListView();
+  #sortComponent = new SortView();
+  #noTaskComponent = new NoTaskView();
   #loadMoreButtonComponent = new LoadMoreButtonView();
 
   #boardTasks = [];
   #renderedTaskCount = TASK_COUNT_PER_STEP;
+  #taskPresenter = new Map();
+  #currentSortType = SortType.DEFAULT;
+  #sourcesBoardTasks = [];
 
   constructor(boardContainer, tasksModel) {
     this.#boardContainer = boardContainer;
@@ -27,15 +34,15 @@ export default class BoardPresenter {
 
   init = () => {
     this.#boardTasks = [...this.#tasksModel.tasks];
-
+    this.#sourcesBoardTasks = [...this.#tasksModel.tasks];
     this.#renderBoard();
   };
 
+  /**
+   * Обработчик кнопки "Показать ещё"
+   */
   #handleLoadMoreButtonClick = () => {
-    this.#boardTasks
-      .slice(this.#renderedTaskCount, this.#renderedTaskCount + TASK_COUNT_PER_STEP)
-      .forEach((task) => this.#renderTask(task));
-
+    this.#renderTasks(this.#renderedTaskCount, this.#renderedTaskCount + TASK_COUNT_PER_STEP);
     this.#renderedTaskCount += TASK_COUNT_PER_STEP;
 
     if (this.#renderedTaskCount >= this.#boardTasks.length) {
@@ -43,57 +50,133 @@ export default class BoardPresenter {
     }
   };
 
-  #renderTask = (task) => {
-    const taskComponent = new TaskView(task);
-    const taskEditComponent = new TaskEditView(task);
-
-    const replaceCardToForm = () => {
-      replace(taskEditComponent, taskComponent);
-    };
-
-    const replaceFormToCard = () => {
-      replace(taskComponent, taskEditComponent);
-    };
-
-    const onEscKeyDown = (evt) => {
-      if (evt.key === 'Escape' || evt.key === 'Esc') {
-        evt.preventDefault();
-        replaceFormToCard();
-        document.removeEventListener('keydown', onEscKeyDown);
-      }
-    };
-
-    taskComponent.setEditClickHandler(() => {
-      replaceCardToForm();
-      document.addEventListener('keydown', onEscKeyDown);
-    });
-
-    taskEditComponent.setFormSubmitHandler(() => {
-      replaceFormToCard();
-      document.removeEventListener('keydown', onEscKeyDown);
-    });
-
-    render(taskComponent, this.#taskListComponent.element);
+  /**
+   * Обработчик режимов карточек задач.
+   * Переключение в режим просмотра (по умолчанию)
+   */
+  #handleModeChange = () => {
+    this.#taskPresenter.forEach((presenter) => presenter.resetView());
   };
 
+  /**
+   * Обработчик изменения задачи
+   * @param updatedTask
+   */
+  #handleTaskChange = (updatedTask) => {
+    this.#boardTasks = updateItem(this.#boardTasks, updatedTask);
+    this.#sourcesBoardTasks = updateItem(this.#boardTasks, updatedTask);
+    this.#taskPresenter.get(updatedTask.id).init(updatedTask);
+  };
+
+  /**
+   * Производит сортировку задач в массиве
+   * @param sortType
+   */
+  #sortTasks = (sortType) => {
+    switch (sortType) {
+      case SortType.DATE_UP:
+        this.#boardTasks.sort(sortTaskUp);
+        break;
+      case SortType.DATE_DOWN:
+        this.#boardTasks.sort(sortTaskDown);
+        break;
+      default:
+        this.#boardTasks = [...this.#sourcesBoardTasks];
+    }
+
+    this.#currentSortType = sortType;
+  };
+
+  /**
+   * Обработчик нажатия ссылки в компоненте сортировки
+   * @param sortType
+   */
+  #handleSortTypeChange = (sortType) => {
+    this.#sortTasks(sortType);
+    this.#clearTaskList();
+    this.#renderTaskList();
+  };
+
+  /**
+   * Отрисовка компонента сортировки
+   */
+  #renderSort = () => {
+    render(this.#sortComponent, this.#boardComponent.element, RenderPosition.AFTERBEGIN);
+    this.#sortComponent.setSortTypeChangeHandler(this.#handleSortTypeChange);
+  };
+
+  /**
+   * Отрисовка карточки задачи на доске
+   * @param task
+   */
+  #renderTask = (task) => {
+    const taskPresenter = new TaskPresenter(this.#taskListComponent.element, this.#handleTaskChange, this.#handleModeChange);
+    taskPresenter.init(task);
+    this.#taskPresenter.set(task.id, taskPresenter);
+  };
+
+  /**
+   * Отрисовка порции карточек задач на доске
+   * @param from
+   * @param to
+   */
+  #renderTasks = (from, to) => {
+    this.#boardTasks
+      .slice(from, to)
+      .forEach((task) => this.#renderTask(task));
+  };
+
+  /**
+   * Отрисовка сообщения если нет задач
+   * для отображения на доске
+   */
+  #renderNoTasks = () => {
+    render(this.#noTaskComponent, this.#boardComponent.element, RenderPosition.AFTERBEGIN);
+  };
+
+  /**
+   * Отрисовка кнопки "Показать ещё"
+   * и установка обработчика на эту кнопку
+   */
+  #renderLoadMoreButton = () => {
+    render(this.#loadMoreButtonComponent, this.#boardComponent.element);
+    this.#loadMoreButtonComponent.setClickHandler(this.#handleLoadMoreButtonClick);
+  };
+
+  /**
+   * Очистка доски от карточек задач
+   */
+  #clearTaskList = () => {
+    this.#taskPresenter.forEach((presenter) => presenter.destroy());
+    this.#taskPresenter.clear();
+    this.#renderedTaskCount = TASK_COUNT_PER_STEP;
+    remove(this.#loadMoreButtonComponent);
+  };
+
+  /**
+   * Отрисовка списка задач
+   */
+  #renderTaskList = () => {
+    render(this.#taskListComponent, this.#boardComponent.element);
+    this.#renderTasks(0, Math.min(this.#boardTasks.length, TASK_COUNT_PER_STEP));
+
+    if (this.#boardTasks.length > TASK_COUNT_PER_STEP) {
+      this.#renderLoadMoreButton();
+    }
+  };
+
+  /**
+   * Отрисовка доски
+   */
   #renderBoard() {
     render(this.#boardComponent, this.#boardContainer);
 
     if (this.#boardTasks.every((task) => task.isArchive)) {
-      render(new NoTaskView(), this.#boardComponent.element);
-    } else {
-      render(new SortView(), this.#boardComponent.element);
-      render(this.#taskListComponent, this.#boardComponent.element);
-
-      for (let i = 0; i < Math.min(this.#boardTasks.length, TASK_COUNT_PER_STEP); i++) {
-        this.#renderTask(this.#boardTasks[i]);
-      }
-
-      if (this.#boardTasks.length > TASK_COUNT_PER_STEP) {
-        render(this.#loadMoreButtonComponent, this.#boardComponent.element);
-
-        this.#loadMoreButtonComponent.setClickHandler(this.#handleLoadMoreButtonClick);
-      }
+      this.#renderNoTasks();
+      return;
     }
+
+    this.#renderSort();
+    this.#renderTaskList();
   };
 }
