@@ -86,6 +86,8 @@ const createTaskEditTemplate = (data) => {
 
   const colorsTemplate = createTaskEditColorsTemplate(color);
 
+  const isSubmitDisabled = isRepeating && !isTaskRepeating(repeating);
+
   return (
     `<article class="card card--edit card--${color} ${repeatingClassName}">
       <form class="card__form" method="get">
@@ -124,7 +126,7 @@ const createTaskEditTemplate = (data) => {
           </div>
 
           <div class="card__status-btns">
-            <button class="card__save" type="submit">save</button>
+            <button class="card__save" type="submit" ${isSubmitDisabled ? 'disabled' : ''}>save</button>
             <button class="card__delete" type="button">delete</button>
           </div>
         </div>
@@ -155,11 +157,11 @@ export default class TaskEditView extends AbstractStatefulView {
     this.setFormSubmitHandler(this._callback.formSubmit);
   };
 
-  #setInnerHandlers = () => {
-    this.element.querySelector('.card__date-deadline-toggle')
-      .addEventListener('click', this.#dueDateToggleHandler);
-    this.element.querySelector('.card__repeat-toggle')
-      .addEventListener('click', this.#repeatingToggleHandler);
+  #colorChangeHandler = (evt) => {
+    evt.preventDefault();
+    this.updateElement({
+      color: evt.target.value,
+    });
   };
 
   #descriptionInputHandler = (evt) => {
@@ -169,26 +171,53 @@ export default class TaskEditView extends AbstractStatefulView {
     });
   };
 
-  #formSubmitHandler = (evt) => {
-    evt.preventDefault();
-    this._callback.formSubmit(TaskEditView.parseStateToTask(this._state));
-
-    this.element.querySelector('.card__text')
-      .addEventListener('input', this.#descriptionInputHandler);
-  };
-
   #dueDateToggleHandler = (evt) => {
     evt.preventDefault();
     this.updateElement({
       isDueDate: !this._state.isDueDate,
+      // Логика следующая: если выбор даты нужно показать,
+      // то есть когда "!this._state.isDueDate === true",
+      // тогда isRepeating должно быть строго false.
+      isRepeating: !this._state.isDueDate ? false : this._state.isRepeating,
     });
+  };
+
+  #formSubmitHandler = (evt) => {
+    evt.preventDefault();
+    this._callback.formSubmit(TaskEditView.parseStateToTask(this._state));
   };
 
   #repeatingToggleHandler = (evt) => {
     evt.preventDefault();
     this.updateElement({
       isRepeating: !this._state.isRepeating,
+      // Аналогично, но наоборот, для повторения
+      isDueDate: !this._state.isRepeating ? false : this._state.isDueDate,
     });
+  };
+
+  #repeatingChangeHandler = (evt) => {
+    evt.preventDefault();
+    this.updateElement({
+      repeating: {...this._state.repeating, [evt.target.value]: evt.target.checked},
+    });
+  };
+
+  #setInnerHandlers = () => {
+    this.element.querySelector('.card__date-deadline-toggle')
+      .addEventListener('click', this.#dueDateToggleHandler);
+    this.element.querySelector('.card__repeat-toggle')
+      .addEventListener('click', this.#repeatingToggleHandler);
+    this.element.querySelector('.card__text')
+      .addEventListener('input', this.#descriptionInputHandler);
+
+    if (this._state.isRepeating) {
+      this.element.querySelector('.card__repeat-days-inner')
+        .addEventListener('change', this.#repeatingChangeHandler);
+    }
+
+    this.element.querySelector('.card__colors-wrap')
+      .addEventListener('change', this.#colorChangeHandler);
   };
 
   static parseTaskToState = (task) => ({...task,
