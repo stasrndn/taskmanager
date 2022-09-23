@@ -43,8 +43,6 @@ export default class TaskPresenter {
       return;
     }
 
-    // Проверка на наличие в DOM необходима,
-    // чтобы не пытаться заменить то, что не было отрисовано
     if (this.#mode === Mode.DEFAULT) {
       replace(this.#taskComponent, prevTaskComponent);
     }
@@ -60,30 +58,32 @@ export default class TaskPresenter {
   destroy = () => {
     remove(this.#taskComponent);
     remove(this.#taskEditComponent);
-  }
+  };
 
   resetView = () => {
     if (this.#mode !== Mode.DEFAULT) {
+      this.#taskEditComponent.reset(this.#task);
       this.#replaceFormToCard();
     }
   };
 
   #replaceCardToForm = () => {
     replace(this.#taskEditComponent, this.#taskComponent);
-    document.addEventListener('keydown', this.#onEscapeKeydown);
+    document.addEventListener('keydown', this.#escKeyDownHandler);
     this.#changeMode();
     this.#mode = Mode.EDITING;
   };
 
   #replaceFormToCard = () => {
     replace(this.#taskComponent, this.#taskEditComponent);
-    document.removeEventListener('keydown', this.#onEscapeKeydown);
+    document.removeEventListener('keydown', this.#escKeyDownHandler);
     this.#mode = Mode.DEFAULT;
   };
 
-  #onEscapeKeydown = (evt) => {
+  #escKeyDownHandler = (evt) => {
     if (evt.key === 'Escape' || evt.key === 'Esc') {
       evt.preventDefault();
+      this.#taskEditComponent.reset(this.#task);
       this.#replaceFormToCard();
     }
   };
