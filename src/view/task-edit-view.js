@@ -1,3 +1,4 @@
+import he from 'he';
 import AbstractStatefulView from '../framework/view/abstract-stateful-view.js';
 import {humanizeTaskDueDate, isTaskRepeating} from '../utils/task.js';
 import {COLORS} from '../const.js';
@@ -107,7 +108,7 @@ const createTaskEditTemplate = (data) => {
                 class="card__text"
                 placeholder="Start typing your text here..."
                 name="text"
-              >${description}</textarea>
+              >${he.encode(description)}</textarea>
             </label>
           </div>
 
@@ -175,10 +176,16 @@ export default class TaskEditView extends AbstractStatefulView {
     this.element.querySelector('form').addEventListener('submit', this.#formSubmitHandler);
   };
 
+  setDeleteClickHandler = (callback) => {
+    this._callback.deleteClick = callback;
+    this.element.querySelector('.card__delete').addEventListener('click', this.#formDeleteClickHandler);
+  };
+
   _restoreHandlers = () => {
     this.#setInnerHandlers();
     this.#setDatepicker();
     this.setFormSubmitHandler(this._callback.formSubmit);
+    this.setDeleteClickHandler(this._callback.deleteClick);
   };
 
   #colorChangeHandler = (evt) => {
@@ -263,6 +270,11 @@ export default class TaskEditView extends AbstractStatefulView {
 
     this.element.querySelector('.card__colors-wrap')
       .addEventListener('change', this.#colorChangeHandler);
+  };
+
+  #formDeleteClickHandler = (evt) => {
+    evt.preventDefault();
+    this._callback.deleteClick(TaskEditView.parseStateToTask(this._state));
   };
 
   static parseTaskToState = (task) => ({...task,

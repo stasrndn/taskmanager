@@ -1,6 +1,8 @@
 import {render, replace, remove} from '../framework/render.js';
 import TaskView from '../view/task-view.js';
 import TaskEditView from '../view/task-edit-view.js';
+import {UserAction, UpdateType} from '../const.js';
+import {isTaskRepeating, isDatesEqual} from '../utils/task.js';
 
 const Mode = {
   DEFAULT: 'DEFAULT',
@@ -37,6 +39,7 @@ export default class TaskPresenter {
     this.#taskComponent.setFavoriteClickHandler(this.#handleFavoriteClick);
     this.#taskComponent.setArchiveClickHandler(this.#handleArchiveClick);
     this.#taskEditComponent.setFormSubmitHandler(this.#handleFormSubmit);
+    this.#taskEditComponent.setDeleteClickHandler(this.#handleDeleteClick);
 
     if (prevTaskComponent === null || prevTaskEditComponent === null) {
       render(this.#taskComponent, this.#taskListContainer);
@@ -93,15 +96,41 @@ export default class TaskPresenter {
   };
 
   #handleFavoriteClick = () => {
-    this.#changeData({...this.#task, isFavorite: !this.#task.isFavorite});
+    this.#changeData(
+      UserAction.UPDATE_TASK,
+      UpdateType.MINOR,
+      {...this.#task, isFavorite: !this.#task.isFavorite},
+    );
   };
 
   #handleArchiveClick = () => {
-    this.#changeData({...this.#task, isArchive: !this.#task.isArchive});
+    this.#changeData(
+      UserAction.UPDATE_TASK,
+      UpdateType.MINOR,
+      {...this.#task, isArchive: !this.#task.isArchive},
+    );
   };
 
-  #handleFormSubmit = (task) => {
-    this.#changeData(task);
+  #handleFormSubmit = (update) => {
+    // Проверяем, поменялись ли в задаче данные, которые попадают под фильтрацию,
+    // а значит требуют перерисовки списка - если таких нет, это PATCH-обновление
+    const isMinorUpdate =
+      !isDatesEqual(this.#task.dueDate, update.dueDate) ||
+      isTaskRepeating(this.#task.repeating) !== isTaskRepeating(update.repeating);
+
+    this.#changeData(
+      UserAction.UPDATE_TASK,
+      isMinorUpdate ? UpdateType.MINOR : UpdateType.PATCH,
+      update,
+    );
     this.#replaceFormToCard();
+  };
+
+  #handleDeleteClick = (task) => {
+    this.#changeData(
+      UserAction.DELETE_TASK,
+      UpdateType.MINOR,
+      task,
+    );
   };
 }

@@ -1,12 +1,11 @@
+import he from 'he';
 import AbstractView from '../framework/view/abstract-view.js';
 import {humanizeTaskDueDate, isTaskExpired, isTaskRepeating} from '../utils/task.js';
 
 const createTaskTemplate = (task) => {
   const {color, description, dueDate, repeating, isArchive, isFavorite} = task;
 
-  const date = dueDate !== null
-    ? humanizeTaskDueDate(dueDate)
-    : '';
+  const date = humanizeTaskDueDate(dueDate);
 
   const deadlineClassName = isTaskExpired(dueDate)
     ? 'card--deadline'
@@ -25,19 +24,19 @@ const createTaskTemplate = (task) => {
     : 'card__btn--favorites';
 
   return (
-    `<article class="card card--${color} ${deadlineClassName} ${repeatClassName} ${archiveClassName} ${favoriteClassName}">
+    `<article class="card card--${color} ${deadlineClassName} ${repeatClassName}">
       <div class="card__form">
         <div class="card__inner">
           <div class="card__control">
             <button type="button" class="card__btn card__btn--edit">
               edit
             </button>
-            <button type="button" class="card__btn card__btn--archive">
+            <button type="button" class="card__btn ${archiveClassName}">
               archive
             </button>
             <button
               type="button"
-              class="card__btn card__btn--favorites"
+              class="card__btn ${favoriteClassName}"
             >
               favorites
             </button>
@@ -50,7 +49,7 @@ const createTaskTemplate = (task) => {
           </div>
 
           <div class="card__textarea-wrap">
-            <p class="card__text">${description}</p>
+            <p class="card__text">${he.encode(description)}</p>
           </div>
 
           <div class="card__settings">
@@ -67,7 +66,7 @@ const createTaskTemplate = (task) => {
         </div>
       </div>
     </article>`
-  )
+  );
 };
 
 export default class TaskView extends AbstractView {
@@ -104,11 +103,11 @@ export default class TaskView extends AbstractView {
 
   #favoriteClickHandler = (evt) => {
     evt.preventDefault();
-    // TODO
+    this._callback.favoriteClick();
   };
 
   #archiveClickHandler = (evt) => {
     evt.preventDefault();
-    // TODO
+    this._callback.archiveClick();
   };
 }

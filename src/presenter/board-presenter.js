@@ -5,178 +5,203 @@ import TaskListView from '../view/task-list-view.js';
 import LoadMoreButtonView from '../view/load-more-button-view.js';
 import NoTaskView from '../view/no-task-view.js';
 import TaskPresenter from './task-presenter.js';
-import {updateItem} from '../utils/common.js';
+import TaskNewPresenter from './task-new-presenter.js';
 import {sortTaskUp, sortTaskDown} from '../utils/task.js';
-import {SortType} from '../const.js';
+import {filter} from '../utils/filter.js';
+import {SortType, UpdateType, UserAction, FilterType} from '../const.js';
 
 const TASK_COUNT_PER_STEP = 8;
 
 export default class BoardPresenter {
   #boardContainer = null;
   #tasksModel = null;
+  #filterModel = null;
 
   #boardComponent = new BoardView();
   #taskListComponent = new TaskListView();
-  #sortComponent = new SortView();
-  #noTaskComponent = new NoTaskView();
-  #loadMoreButtonComponent = new LoadMoreButtonView();
+  #noTaskComponent = null;
+  #sortComponent = null;
+  #loadMoreButtonComponent = null;
 
-  #boardTasks = [];
   #renderedTaskCount = TASK_COUNT_PER_STEP;
   #taskPresenter = new Map();
+  #taskNewPresenter = null;
   #currentSortType = SortType.DEFAULT;
-  #sourcesBoardTasks = [];
+  #filterType = FilterType.ALL;
 
-  constructor(boardContainer, tasksModel) {
+  constructor(boardContainer, tasksModel, filterModel) {
     this.#boardContainer = boardContainer;
     this.#tasksModel = tasksModel;
+    this.#filterModel = filterModel;
+
+    this.#taskNewPresenter = new TaskNewPresenter(this.#taskListComponent.element, this.#handleViewAction);
+
+    this.#tasksModel.addObserver(this.#handleModelEvent);
+    this.#filterModel.addObserver(this.#handleModelEvent);
+  }
+
+  get tasks() {
+    this.#filterType = this.#filterModel.filter;
+    const tasks = this.#tasksModel.tasks;
+    const filteredTasks = filter[this.#filterType](tasks);
+
+    switch (this.#currentSortType) {
+      case SortType.DATE_UP:
+        return filteredTasks.sort(sortTaskUp);
+      case SortType.DATE_DOWN:
+        return filteredTasks.sort(sortTaskDown);
+    }
+
+    return filteredTasks;
   }
 
   init = () => {
-    this.#boardTasks = [...this.#tasksModel.tasks];
-    this.#sourcesBoardTasks = [...this.#tasksModel.tasks];
     this.#renderBoard();
   };
 
-  /**
-   * Обработчик кнопки "Показать ещё"
-   */
-  #handleLoadMoreButtonClick = () => {
-    this.#renderTasks(this.#renderedTaskCount, this.#renderedTaskCount + TASK_COUNT_PER_STEP);
-    this.#renderedTaskCount += TASK_COUNT_PER_STEP;
+  createTask = (callback) => {
+    this.#currentSortType = SortType.DEFAULT;
+    this.#filterModel.setFilter(UpdateType.MAJOR, FilterType.ALL);
+    this.#taskNewPresenter.init(callback);
+  };
 
-    if (this.#renderedTaskCount >= this.#boardTasks.length) {
+  #handleLoadMoreButtonClick = () => {
+    const taskCount = this.tasks.length;
+    const newRenderedTaskCount = Math.min(taskCount, this.#renderedTaskCount + TASK_COUNT_PER_STEP);
+    const tasks = this.tasks.slice(this.#renderedTaskCount, newRenderedTaskCount);
+
+    this.#renderTasks(tasks);
+    this.#renderedTaskCount = newRenderedTaskCount;
+
+    if (this.#renderedTaskCount >= taskCount) {
       remove(this.#loadMoreButtonComponent);
     }
   };
 
-  /**
-   * Обработчик режимов карточек задач.
-   * Переключение в режим просмотра (по умолчанию)
-   */
   #handleModeChange = () => {
+    this.#taskNewPresenter.destroy();
     this.#taskPresenter.forEach((presenter) => presenter.resetView());
   };
 
-  /**
-   * Обработчик изменения задачи
-   * @param updatedTask
-   */
-  #handleTaskChange = (updatedTask) => {
-    this.#boardTasks = updateItem(this.#boardTasks, updatedTask);
-    this.#sourcesBoardTasks = updateItem(this.#boardTasks, updatedTask);
-    this.#taskPresenter.get(updatedTask.id).init(updatedTask);
+  #handleViewAction = (actionType, updateType, update) => {
+    switch (actionType) {
+      case UserAction.UPDATE_TASK:
+        this.#tasksModel.updateTask(updateType, update);
+        break;
+      case UserAction.ADD_TASK:
+        this.#tasksModel.addTask(updateType, update);
+        break;
+      case UserAction.DELETE_TASK:
+        this.#tasksModel.deleteTask(updateType, update);
+        break;
+    }
   };
 
-  /**
-   * Производит сортировку задач в массиве
-   * @param sortType
-   */
-  #sortTasks = (sortType) => {
-    switch (sortType) {
-      case SortType.DATE_UP:
-        this.#boardTasks.sort(sortTaskUp);
+  #handleModelEvent = (updateType, data) => {
+    switch (updateType) {
+      case UpdateType.PATCH:
+        this.#taskPresenter.get(data.id).init(data);
         break;
-      case SortType.DATE_DOWN:
-        this.#boardTasks.sort(sortTaskDown);
+      case UpdateType.MINOR:
+        this.#clearBoard();
+        this.#renderBoard();
         break;
-      default:
-        this.#boardTasks = [...this.#sourcesBoardTasks];
+      case UpdateType.MAJOR:
+        this.#clearBoard({resetRenderedTaskCount: true, resetSortType: true});
+        this.#renderBoard();
+        break;
+    }
+  };
+
+  #handleSortTypeChange = (sortType) => {
+    if (this.#currentSortType === sortType) {
+      return;
     }
 
     this.#currentSortType = sortType;
+    this.#clearBoard({resetRenderedTaskCount: true});
+    this.#renderBoard();
   };
 
-  /**
-   * Обработчик нажатия ссылки в компоненте сортировки
-   * @param sortType
-   */
-  #handleSortTypeChange = (sortType) => {
-    this.#sortTasks(sortType);
-    this.#clearTaskList();
-    this.#renderTaskList();
-  };
-
-  /**
-   * Отрисовка компонента сортировки
-   */
   #renderSort = () => {
-    render(this.#sortComponent, this.#boardComponent.element, RenderPosition.AFTERBEGIN);
+    this.#sortComponent = new SortView(this.#currentSortType);
     this.#sortComponent.setSortTypeChangeHandler(this.#handleSortTypeChange);
+
+    render(this.#sortComponent, this.#boardComponent.element, RenderPosition.AFTERBEGIN);
   };
 
-  /**
-   * Отрисовка карточки задачи на доске
-   * @param task
-   */
   #renderTask = (task) => {
-    const taskPresenter = new TaskPresenter(this.#taskListComponent.element, this.#handleTaskChange, this.#handleModeChange);
+    const taskPresenter = new TaskPresenter(this.#taskListComponent.element, this.#handleViewAction, this.#handleModeChange);
     taskPresenter.init(task);
     this.#taskPresenter.set(task.id, taskPresenter);
   };
 
-  /**
-   * Отрисовка порции карточек задач на доске
-   * @param from
-   * @param to
-   */
-  #renderTasks = (from, to) => {
-    this.#boardTasks
-      .slice(from, to)
-      .forEach((task) => this.#renderTask(task));
+  #renderTasks = (tasks) => {
+    tasks.forEach((task) => this.#renderTask(task));
   };
 
-  /**
-   * Отрисовка сообщения если нет задач
-   * для отображения на доске
-   */
   #renderNoTasks = () => {
+    this.#noTaskComponent = new NoTaskView(this.#filterType);
     render(this.#noTaskComponent, this.#boardComponent.element, RenderPosition.AFTERBEGIN);
   };
 
-  /**
-   * Отрисовка кнопки "Показать ещё"
-   * и установка обработчика на эту кнопку
-   */
   #renderLoadMoreButton = () => {
-    render(this.#loadMoreButtonComponent, this.#boardComponent.element);
+    this.#loadMoreButtonComponent = new LoadMoreButtonView();
     this.#loadMoreButtonComponent.setClickHandler(this.#handleLoadMoreButtonClick);
+
+    render(this.#loadMoreButtonComponent, this.#boardComponent.element);
   };
 
-  /**
-   * Очистка доски от карточек задач
-   */
-  #clearTaskList = () => {
+  #clearBoard = ({resetRenderedTaskCount = false, resetSortType = false} = {}) => {
+    const taskCount = this.tasks.length;
+
+    this.#taskNewPresenter.destroy();
     this.#taskPresenter.forEach((presenter) => presenter.destroy());
     this.#taskPresenter.clear();
-    this.#renderedTaskCount = TASK_COUNT_PER_STEP;
+
+    remove(this.#sortComponent);
     remove(this.#loadMoreButtonComponent);
-  };
 
-  /**
-   * Отрисовка списка задач
-   */
-  #renderTaskList = () => {
-    render(this.#taskListComponent, this.#boardComponent.element);
-    this.#renderTasks(0, Math.min(this.#boardTasks.length, TASK_COUNT_PER_STEP));
+    if (this.#noTaskComponent) {
+      remove(this.#noTaskComponent);
+    }
 
-    if (this.#boardTasks.length > TASK_COUNT_PER_STEP) {
-      this.#renderLoadMoreButton();
+    if (resetRenderedTaskCount) {
+      this.#renderedTaskCount = TASK_COUNT_PER_STEP;
+    } else {
+      // На случай, если перерисовка доски вызвана
+      // уменьшением количества задач (например, удаление или перенос в архив)
+      // нужно скорректировать число показанных задач
+      this.#renderedTaskCount = Math.min(taskCount, this.#renderedTaskCount);
+    }
+
+    if (resetSortType) {
+      this.#currentSortType = SortType.DEFAULT;
     }
   };
 
-  /**
-   * Отрисовка доски
-   */
-  #renderBoard() {
+  #renderBoard = () => {
+    const tasks = this.tasks;
+    const taskCount = tasks.length;
+
     render(this.#boardComponent, this.#boardContainer);
 
-    if (this.#boardTasks.every((task) => task.isArchive)) {
+    if (taskCount === 0) {
       this.#renderNoTasks();
       return;
     }
 
     this.#renderSort();
-    this.#renderTaskList();
+    render(this.#taskListComponent, this.#boardComponent.element);
+
+    // Теперь, когда #renderBoard рендерит доску не только на старте,
+    // но и по ходу работы приложения, нужно заменить
+    // константу TASK_COUNT_PER_STEP на свойство #renderedTaskCount,
+    // чтобы в случае перерисовки сохранить N-показанных карточек
+    this.#renderTasks(tasks.slice(0, Math.min(taskCount, this.#renderedTaskCount)));
+
+    if (taskCount > this.#renderedTaskCount) {
+      this.#renderLoadMoreButton();
+    }
   };
 }
