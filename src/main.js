@@ -4,7 +4,7 @@ import BoardPresenter from './presenter/board-presenter.js';
 import FilterPresenter from './presenter/filter-presenter.js';
 import TasksModel from './model/tasks-model.js';
 import FilterModel from './model/filter-model.js';
-import TasksApiService from "./tasks-api-service.js";
+import TasksApiService from './tasks-api-service.js';
 
 const AUTHORIZATION = 'Basic hS2sfS44wcl1sa2j';
 const END_POINT = 'https://18.ecmascript.pages.academy/task-manager';
@@ -32,3 +32,4 @@ newTaskButtonComponent.setClickHandler(handleNewTaskButtonClick);
 
 filterPresenter.init();
 boardPresenter.init();
+tasksModel.init();
