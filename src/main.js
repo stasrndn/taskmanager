@@ -32,4 +32,8 @@ newTaskButtonComponent.setClickHandler(handleNewTaskButtonClick);
 
 filterPresenter.init();
 boardPresenter.init();
-tasksModel.init();
+tasksModel.init()
+  .finally(() => {
+    render(newTaskButtonComponent, siteHeaderElement);
+    newTaskButtonComponent.setClickHandler(handleNewTaskButtonClick);
+  });
